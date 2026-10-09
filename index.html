@@ -1428,6 +1428,16 @@ h1,h2,h3,h4,.card h3,.rm-ph h3,#iif-pane-t{text-wrap:balance}
 .tbtns{margin-left:auto;display:inline-flex;gap:8px;flex-wrap:wrap}
 /* today's date at the top of the navy headline */
 .headline .hl-date{font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--sky-soft);margin-bottom:-6px}
+
+/* Undo at the foot of the menu, above Dark Mode (as Summit HQ) */
+.hq .mast-right .hq-undo:disabled{opacity:.4;cursor:default}
+.hq .mast-right .hq-undo:disabled:hover{background:none;color:rgba(255,255,255,.76)}
+/* Save, Cancel, and Delete Task pushed to the right of the same row */
+.btnrow .push{margin-left:auto}
+.btn.ghost.danger{color:var(--bad);border-color:var(--bad);background:transparent}
+.btn.ghost.danger:hover{background:var(--bad-soft,rgba(179,55,44,.1));color:var(--bad)}
+.btn.ghost.danger.armed,.btn.ghost.danger.armed:hover{background:var(--bad);border-color:var(--bad);color:#fff}
+.cl .x.armed{width:auto;padding:0 8px;background:var(--bad);color:#fff;border-radius:4px;font-size:11.5px;font-weight:700}
 /* sign-in, access and connection notices (resources.mismo.org) */
 /* account button: squared corners, same as Summit HQ and Team HQ */
 #rs-account{flex:0 0 auto;display:inline-flex;align-items:center}
@@ -1500,6 +1510,10 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
   </nav>
   <div class="railsum" id="railsum" hidden><b id="invdate"></b></div>
   <div class="mast-right">
+    <button class="theme-btn hq-undo" id="undo-btn" type="button" disabled title="Nothing to undo yet">
+      <svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 010 12h-2"/></svg>
+      <span>Undo</span>
+    </button>
     <button class="theme-btn" id="theme-btn" type="button">
       <svg class="ti ti-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a6.4 6.4 0 009 9 9 9 0 11-9-9z"/></svg>
       <svg class="ti ti-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.1"/><path d="M12 2.4v2.3M12 19.3v2.3M4.2 4.2l1.7 1.7M18.1 18.1l1.7 1.7M2.4 12h2.3M19.3 12h2.3M4.2 19.8l1.7-1.7M18.1 5.9l1.7-1.7"/></svg>
@@ -1863,8 +1877,14 @@ function whenTxt(d){const k=days(TODAY,d);return k<0?(-k)+(k===-1?" day ago":" d
 /* ---------- writes ---------- */
 function writable(){if(!db||canWrite===false){toast("Changes can't be saved in this view.",true);return false;}return true;}
 function onWriteErr(e){if(e&&(e.code==="permission_denied"||e.code==="invalid_argument")&&canWrite!==true){canWrite=false;$("savebanner").hidden=false;}toast("That change didn't save. Check your connection and try again.",true);}
-function saveDoc(col,store,id,patch,what){
+function saveDoc(col,store,id,patch,what,opts){
   if(!writable())return Promise.resolve(false);
+  /* every change keeps its own way back: only the fields it touched, and what they were */
+  if(what&&!(opts&&opts.noUndo)){
+    const was=store[id],prev={},next={};
+    Object.keys(patch).forEach(k=>{next[k]=clone(patch[k]);prev[k]=was&&was[k]!==undefined?clone(was[k]):(Array.isArray(patch[k])?[]:"");});
+    pushUndo(was?{col,id,what,prev,next}:{col,id,what,isNew:true});
+  }
   const now=new Date().toISOString();
   const cur=store[id]||{};
   const hist=(cur.hist||[]).slice(-39).concat(what?[{at:now,by:ME||"",what}]:[]);
@@ -1876,9 +1896,80 @@ function saveDoc(col,store,id,patch,what){
   const run=async()=>{try{if(full)await db.doc(col+"/"+id).set(body);else await db.doc(col+"/"+id).update(body);return true;}catch(e){onWriteErr(e);return false;}};
   chain[col+id]=(chain[col+id]||Promise.resolve()).then(run);return chain[col+id];
 }
-const saveTask=(id,p,w)=>saveDoc("tasks",T,id,p,w);
-const saveRaid=(id,p,w)=>saveDoc("raid",R,id,p,w);
-const saveAuto=(id,p,w)=>saveDoc("autos",A,id,p,w);
+const saveTask=(id,p,w,o)=>saveDoc("tasks",T,id,p,w,o);
+const saveRaid=(id,p,w,o)=>saveDoc("raid",R,id,p,w,o);
+const saveAuto=(id,p,w,o)=>saveDoc("autos",A,id,p,w,o);
+function clone(v){return v===undefined?undefined:JSON.parse(JSON.stringify(v));}
+
+/* ---------- undo ----------
+   Modelled on Summit HQ's: one Undo at the foot of the menu (and Ctrl/Cmd+Z outside a text
+   box) steps back through this session's changes, newest first, and opens the item it changed
+   so the step back is always visible. The lessons Summit HQ learned are kept:
+   - a step puts back only the fields that change touched, so someone else's edit to another
+     field of the same item is never wiped;
+   - if someone changed that same field since, it is left alone and the page says so;
+   - stepping back is not itself recorded, and a second press waits for the first to finish;
+   - deleting needs a second click to confirm (pop-up confirmations are blocked in the
+     published page), and Undo brings a deleted item back exactly as it was;
+   - the history lasts while the page is open (40 steps) and is off for view-only access. */
+const UNDO=[];let undoBusy=false;
+const STORES={tasks:()=>T,raid:()=>R,autos:()=>A},PTYPE={tasks:"t",raid:"r",autos:"a"};
+function pushUndo(e){UNDO.push(e);if(UNDO.length>40)UNDO.shift();paintUndo();}
+function paintUndo(){
+  const b=$("undo-btn");if(!b)return;const top=UNDO[UNDO.length-1];
+  b.disabled=undoBusy||!top||!db||canWrite===false;
+  b.title=top?"Undo: "+top.what+(UNDO.length>1?"  \u00b7  "+UNDO.length+" steps back available":""):"Nothing to undo yet";
+}
+function showStep(e){if(pane&&pane.type===PTYPE[e.col]&&pane.id===e.id){paneDirty=false;renderPane();}else if(STORES[e.col]()[e.id])openPane(PTYPE[e.col],e.id);}
+const same=(a,b)=>JSON.stringify(a===undefined?"":a)===JSON.stringify(b===undefined?"":b);
+async function undoStep(e){
+  const store=STORES[e.col]();
+  if(e.run)return e.run();
+  if(e.isNew){   /* taking back something just added: it goes, and can be brought back the same way */
+    if(!store[e.id]){toast("Not undone \u2014 it's already gone.",true);return;}
+    await removeItem(e.col,e.id,"Removed (undo of: "+e.what+")",true);toast("Undone: "+e.what.toLowerCase()+".");return;
+  }
+  const cur=store[e.id];
+  if(!cur){toast("Not undone \u2014 that item has been deleted since.",true);return;}
+  const back={};let kept=0;
+  Object.keys(e.prev).forEach(k=>{if(same(cur[k],e.next[k]))back[k]=e.prev[k];else kept++;});
+  if(!Object.keys(back).length){toast("Not undone \u2014 someone has changed it since.",true);showStep(e);return;}
+  await saveDoc(e.col,store,e.id,back,"Undid: "+e.what,{noUndo:true});
+  showStep(e);toast("Undone: "+e.what+(kept?" (a part changed since by someone else was kept)":"")+".");
+}
+async function undo(){
+  if(undoBusy||!UNDO.length)return;if(!writable())return;
+  const e=UNDO.pop();undoBusy=true;paintUndo();
+  try{await undoStep(e);}catch(err){toast("That couldn't be undone. Check your connection and try again.",true);}
+  undoBusy=false;paintUndo();
+}
+/* deleting keeps the item in the database marked deleted, so the starting plan doesn't bring it
+   back, the change history keeps the record, and Undo can restore it whole */
+async function removeItem(col,id,what,noUndo){
+  const store=STORES[col](),was=clone(store[id]);if(!was)return;
+  /* close it and take it off the page first: the save's echo redraws everything */
+  if(pane&&pane.type===PTYPE[col]&&pane.id===id)closePane();
+  const saving=saveDoc(col,store,id,{deleted:true},what,{noUndo:true});
+  delete store[id];if(pane&&pane.type==="L"){openT.delete(id);renderPane();}scheduleRefresh();
+  const ok=await saving;
+  if(ok!==false&&!noUndo)pushUndo({col,id,what:what.replace(/^Deleted/,"deleted"),run:async()=>{
+    store[id]=Object.assign({},was);await saveDoc(col,store,id,{deleted:false},"Restored",{noUndo:true});
+    openPane(PTYPE[col],id);toast("Undone: "+(was.title||was.desc||"the item")+" is back.");}});
+}
+/* a button that asks for a second click before it acts (no pop-ups in the published page) */
+function armed(btn,label,armLabel,fn){
+  let t=null;const reset=()=>{btn.classList.remove("armed");btn.textContent=label;clearTimeout(t);t=null;};
+  btn.addEventListener("click",e=>{e.stopPropagation();if(btn.classList.contains("armed")){reset();fn();return;}
+    btn.classList.add("armed");btn.textContent=armLabel;clearTimeout(t);t=setTimeout(reset,4000);});
+  btn.addEventListener("blur",()=>{if(btn.classList.contains("armed"))setTimeout(reset,150);});
+  return btn;
+}
+document.addEventListener("keydown",e=>{
+  if((e.metaKey||e.ctrlKey)&&!e.shiftKey&&e.key.toLowerCase()==="z"){
+    const t=e.target;if(t&&(t.tagName==="INPUT"||t.tagName==="TEXTAREA"||t.tagName==="SELECT"||t.isContentEditable))return;  /* the box's own undo */
+    e.preventDefault();undo();
+  }
+});
 
 /* ---------- rows ---------- */
 function taskRow(t,opts){
@@ -2244,6 +2335,8 @@ function closePane(){if(!pane)return;const k=pane.type+":"+pane.id;pane=null;pan
 function renderPane(){
   if(!pane)return;const body=$("iif-pane-body");body.textContent="";
   if(pane.type!=="L"&&paneBack){const b=paneBack;body.appendChild(h("button",{type:"button",class:"backlk",onclick:()=>{paneBack=null;pane={type:"L",id:b.id};renderPane();markSel();}},"‹ Back to "+b.title));}
+  /* the item was deleted (here or by someone else) while it was open */
+  if(pane.type!=="L"&&!(pane.type==="t"?T:pane.type==="r"?R:A)[pane.id]){closePane();return;}
   if(pane.type==="L")paneList(pane.id,body);else if(pane.type==="t")paneTask(T[pane.id],body);else if(pane.type==="r")paneRaid(R[pane.id],body);else paneAuto(A[pane.id],body);
   body.querySelectorAll("input,textarea").forEach(el=>el.addEventListener("input",()=>{paneDirty=true;}));
 }
@@ -2260,12 +2353,17 @@ function histBox(x){
   return h("details",{class:"sect"},h("summary",null,"Change History",h("span",{class:"cnt"},hs.length)),h("div",{class:"sbody"},h("div",{class:"hist"},
     hs.map(e=>h("div",{class:"hi"},h("div",null,h("div",{class:"d"},fmtS(e.at.slice(0,10))),h("div",{class:"who"},NAMES[e.by]||"Staff")),h("div",{class:"txt"},e.what))))));
 }
-function textSave(label,val,key,save,rows,id){
-  const ta=h("textarea",{rows:rows||3,id:id||null});ta.value=val||"";
+function textSave(label,val,key,save,rows,id,extra){
+  let saved=val||"";
+  const ta=h("textarea",{rows:rows||3,id:id||null});ta.value=saved;
   const btn=h("button",{class:"btn",type:"button",disabled:true},"Save");
-  ta.addEventListener("input",()=>{btn.disabled=ta.value===(val||"");});
-  btn.addEventListener("click",async()=>{btn.disabled=true;const p={};p[key]=ta.value.trim();paneDirty=false;await save(p,label+" updated");toast(label+" saved.");});
-  return h("div",{class:"fld wide"},h("label",null,label),ta,h("div",{class:"btnrow",style:"margin-top:8px"},btn));
+  const cancel=h("button",{class:"btn ghost",type:"button",disabled:true,title:"Put back what was saved"},"Cancel");
+  const sync=()=>{const ch=ta.value!==saved;btn.disabled=!ch;cancel.disabled=!ch;};
+  ta.addEventListener("input",sync);
+  btn.addEventListener("click",async()=>{btn.disabled=true;cancel.disabled=true;const v=ta.value.trim();const p={};p[key]=v;paneDirty=false;
+    const ok=await save(p,label+" updated");if(ok!==false){saved=v;ta.value=v;toast(label+" saved.");}sync();});
+  cancel.addEventListener("click",()=>{ta.value=saved;paneDirty=false;sync();});
+  return h("div",{class:"fld wide"},h("label",null,label),ta,h("div",{class:"btnrow",style:"margin-top:8px"},btn,cancel,extra?h("span",{class:"push"},extra):null));
 }
 function paneTask(t,body,inline){
   if(!inline)$("iif-pane-t").textContent=t.title;
@@ -2295,8 +2393,8 @@ function paneTask(t,body,inline){
   const ul=h("ul",{class:"cl"});
   ck.forEach((c,i)=>{const cb=h("input",{type:"checkbox","aria-label":"Done"});cb.checked=!!c.done;
     cb.addEventListener("change",()=>{const nc=ck.map((x,j)=>j===i?Object.assign({},x,{done:cb.checked,doneAt:cb.checked?TODAY:""}):x);save({check:nc},(cb.checked?"Checked: ":"Unchecked: ")+c.t.slice(0,80));});
-    const x=h("button",{class:"x",type:"button","aria-label":"Remove this item",title:"Remove"},"×");
-    x.addEventListener("click",()=>{if(!confirm("Remove this checklist item?"))return;save({check:ck.filter((_,j)=>j!==i)},"Removed item: "+c.t.slice(0,80));});
+    const x=armed(h("button",{class:"x",type:"button","aria-label":"Remove this item",title:"Remove (click twice)"},"×"),"×","Remove?",
+      ()=>save({check:ck.filter((_,j)=>j!==i)},"Removed item: "+c.t.slice(0,80)));
     ul.appendChild(h("li",{class:c.done?"on":null},cb,h("div",null,h("span",{class:"ct"},c.t),(c.who||c.last)?h("span",{class:"cw"},[c.who?"Last time: "+c.who:"",c.last||""].filter(Boolean).join(" · ")):null,
       c.view?h("span",{class:"cw"},"View: "+c.view):null),x));});
   const ni=h("input",{type:"text",placeholder:"Add a checklist item","aria-label":"New checklist item"});
@@ -2306,7 +2404,9 @@ function paneTask(t,body,inline){
   const [cd,ct]=ckDone(t);
   body.appendChild(h("details",{class:"sect",open:true},h("summary",null,"Checklist",h("span",{class:"cnt"},ct?cd+" of "+ct:"0")),h("div",{class:"sbody"},ct?ul:h("div",{class:"hint",style:"margin:4px 0 0"},"No checklist yet."),h("div",{class:"addrow"},ni,nb))));
   // notes
-  body.appendChild(h("details",{class:"sect",open:true},h("summary",null,"This Cycle's Notes"),h("div",{class:"sbody"},textSave("Notes",t.notes,"notes",save,4))));
+  const del=canWrite===false||!db?null:armed(h("button",{class:"btn ghost danger",type:"button",title:"Delete this task. Undo brings it back."},"Delete Task"),"Delete Task","Click Again to Delete",
+    ()=>{removeItem("tasks",t.id,"Deleted: "+t.title);toast("Task deleted. Undo brings it back.");});
+  body.appendChild(h("details",{class:"sect",open:true},h("summary",null,"This Cycle's Notes"),h("div",{class:"sbody"},textSave("Notes",t.notes,"notes",save,4,null,del))));
   // last cycle
   const L=t.last||{};
   if(L.st||L.notes)body.appendChild(h("details",{class:"sect",open:!!(t.status==="Decide"||t.added)},h("summary",null,t.added&&!L.st?"Why This Is Here":"Last Cycle ("+PFYL+")"),h("div",{class:"sbody"},
@@ -2390,7 +2490,7 @@ function load(col,store,snap){
   for(const k in store)delete store[k];
   D.seed[col].forEach(x=>{store[x.id]=JSON.parse(JSON.stringify(x));});
   INDB[col]=new Set();
-  snap.docs.forEach(d=>{INDB[col].add(d.id);store[d.id]=Object.assign({id:d.id},d.data());});
+  snap.docs.forEach(d=>{INDB[col].add(d.id);const v=d.data()||{};if(v.deleted){delete store[d.id];return;}store[d.id]=Object.assign({id:d.id},v);});
   SRC[col]=snap.docs.length?"db":"seed";
 }
 
@@ -2401,7 +2501,7 @@ async function boot(){
   setCycle(D.meta);D.seed.tasks.forEach(t=>T[t.id]=t);D.seed.raid.forEach(r=>R[r.id]=r);D.seed.autos.forEach(a=>A[a.id]=a);
   $("foot").append("Rolled forward from the "+PFYL+" IIF Project Plan, the FY 2025 Planning Details checklist, the RAID log and the 2026 InvFee Collections Tracker. Lender-level tracking lives in ",
     h("a",{href:D.meta.m360,target:"_blank",rel:"noopener"},"Member 360"),". Aptify stays the record for companies, quotations and payments.");
-  $("t-add").addEventListener("click",addTask);$("dg-csv").addEventListener("click",downloadBenefits);$("t-csv").addEventListener("click",downloadTasks);$("r-add").addEventListener("click",addRaid);
+  $("t-add").addEventListener("click",addTask);$("undo-btn").addEventListener("click",undo);$("dg-csv").addEventListener("click",downloadBenefits);$("t-csv").addEventListener("click",downloadTasks);$("r-add").addEventListener("click",addRaid);
   $("t-view").querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>{tView=b.dataset.v;try{localStorage.setItem("iif.tView",tView);}catch(e){}renderTasks();}));
   $("r-show").querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>{rShow=b.dataset.v;$("r-show").querySelectorAll("button").forEach(x=>x.classList.toggle("on",x===b));renderRaid();}));
   $("t-q").addEventListener("input",renderTasks);$("r-type").addEventListener("change",renderRaid);
@@ -2423,6 +2523,7 @@ async function boot(){
     if(ME){try{const ps=await userCap.profiles([ME]);MYNAME=(ps[ME]&&ps[ME].name)||"";}catch(e){}}
     try{const c=await userCap.can("data.write");canWrite=c===null?null:c;}catch(e){canWrite=null;}}
   if(!db||canWrite===false)$("savebanner").hidden=false;
+  paintUndo();
   if(!db)return;
   const err=()=>{};
   db.collection("tasks").onSnapshot(s=>{load("tasks",T,s);scheduleRefresh();},err);

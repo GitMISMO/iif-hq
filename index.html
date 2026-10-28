@@ -2426,7 +2426,11 @@ function paneRaid(r,body){
   const who=h("input",{type:"text",value:r.who||""});who.addEventListener("change",()=>save({who:who.value.trim()},"Owner: "+who.value.trim()));
   body.appendChild(h("div",{class:"ctrls"},fld("Status",st),fld("Type",ty),fld("Responsible",who)));
   if(r.flag)body.appendChild(h("div",{class:"box flag"},h("h4",null,"Needs a Look"),h("p",null,r.flag)));
-  body.appendChild(h("div",{class:"box"},h("div",{class:"formgrid"},textSave("Description",r.desc,"desc",save,3,"f-desc"),textSave(FYL+" Decision or Update",r.fy27,"fy27",save,3))));
+  /* delete, the same way as a task: a second click confirms, the entry is kept marked deleted, and Undo brings it back */
+  const kind=r.type||"Entry";
+  const del=canWrite===false||!db?null:armed(h("button",{class:"btn ghost danger",type:"button",title:"Delete this "+kind.toLowerCase()+". Undo brings it back."},"Delete "+kind),"Delete "+kind,"Click Again to Delete",
+    ()=>{removeItem("raid",r.id,"Deleted: #"+r.ref+" "+(r.desc||kind).slice(0,80));toast(kind+" deleted. Undo brings it back.");});
+  body.appendChild(h("div",{class:"box"},h("div",{class:"formgrid"},textSave("Description",r.desc,"desc",save,3,"f-desc",del),textSave(FYL+" Decision or Update",r.fy27,"fy27",save,3))));
   if(r.notes)body.appendChild(h("div",{class:"box lastc"},h("h4",null,"Notes From Last Cycle"),h("p",null,r.notes)));
   const hb=histBox(r);if(hb)body.appendChild(hb);
 }

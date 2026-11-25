@@ -25,6 +25,9 @@
   document.documentElement.classList.add(out ? 'hq-out' : 'hq-in');
 })();</script>
 <script src="/assets/session.js"></script>
+<!-- The browser's Back button (CN-033): each change of page in the left menu is a step, and Back
+     closes an open panel first. One shared copy; never copy it here or add pushState for this. -->
+<script src="/assets/back.js"></script>
 <script>(function(){
   /* Keep the class in step afterwards: signing in reveals the app without a reload, and
      signing out in another tab hides it again. */
@@ -1771,6 +1774,12 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
       });
     });
     wireFind();
+    /* Back (CN-033): on a narrow screen the open menu covers the page like a drawer, so Back
+       closes it first, the same as tapping beside it. This is the bottom layer. */
+    if(window.MismoBack) MismoBack.layer({
+      isOpen: ()=>window.matchMedia('(max-width:900px)').matches && !document.body.classList.contains('railmini'),
+      close: ()=>set(true)
+    });
   }
 
   document.addEventListener('keydown',e=>{
@@ -2632,6 +2641,8 @@ async function boot(){
   document.querySelectorAll("[data-go]").forEach(b=>b.addEventListener("click",()=>show_(b.dataset.go)));
   document.querySelectorAll(".hq nav button[data-hq]").forEach(b=>b.addEventListener("click",()=>show_(b.dataset.hq)));
   $("iif-pane-x").addEventListener("click",closePane);
+  /* Back (CN-033): an open right-hand panel closes first, exactly as its X does */
+  if(window.MismoBack)MismoBack.layer({isOpen:()=>!!pane&&document.body.classList.contains("paneon"),close:closePane});
   /* expand the side panel to the full width beside the menu, and back; remembered per viewer */
   {const pn=$("iif-pane"),bw=$("iif-pane-w");const setW=on=>{pn.classList.toggle("wide",on);bw.setAttribute("aria-label",on?"Back to normal size":"Expand the panel");bw.title=on?"Back to Normal Size":"Expand";try{localStorage.setItem("iif.paneWide",on?"1":"0");}catch(e){}};
     let w0=false;try{w0=localStorage.getItem("iif.paneWide")==="1";}catch(e){}setW(w0);bw.addEventListener("click",()=>setW(!pn.classList.contains("wide")));}

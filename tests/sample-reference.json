@@ -1,0 +1,301 @@
+{
+ "meta": {
+  "cycle": "FY27",
+  "built": "2026-09-26",
+  "invoiceDate": "2027-02-10",
+  "start": "2026-10-01",
+  "end": "2027-05-31",
+  "m360": "https://example.org/member-360"
+ },
+ "last": {
+  "lenders": 100,
+  "invoiced": 200000,
+  "collected": 120000,
+  "full": 40,
+  "partial": 5,
+  "payers": 45,
+  "members": 30,
+  "min1000": 60,
+  "optouts": 4,
+  "channels": {
+   "MERS": 90,
+   "MISMO - CU": 8,
+   "MISMO": 2
+  },
+  "bands": [
+   {
+    "lab": "Top 10",
+    "n": 10,
+    "inv": 100000,
+    "paid": 80000,
+    "payers": 8
+   },
+   {
+    "lab": "Next 40",
+    "n": 40,
+    "inv": 70000,
+    "paid": 30000,
+    "payers": 20
+   },
+   {
+    "lab": "The Rest",
+    "n": 50,
+    "inv": 30000,
+    "paid": 10000,
+    "payers": 17
+   }
+  ]
+ },
+ "slips": [
+  {
+   "task": "t004",
+   "title": "Sample final file",
+   "target": "2026-01-16",
+   "done": "2026-01-20",
+   "days": 4
+  }
+ ],
+ "notdone": [
+  {
+   "task": "t006",
+   "title": "Sample collections follow-up",
+   "st": "Not Started",
+   "target": "2026-03-15"
+  }
+ ],
+ "lessons": [
+  "A sample lesson."
+ ],
+ "seed": {
+  "tasks": [
+   {
+    "id": "t001",
+    "n": 0,
+    "kind": "task",
+    "title": "Sample kickoff meeting",
+    "cat": "Planning",
+    "team": [
+     "MISMO"
+    ],
+    "owners": [
+     "Sam Sample"
+    ],
+    "due": "2026-10-15",
+    "done": "",
+    "status": "Complete",
+    "notes": "",
+    "ticket": "",
+    "check": [],
+    "autos": [],
+    "last": {
+     "st": "Complete",
+     "due": "2025-10-15",
+     "done": "2025-10-15",
+     "notes": ""
+    },
+    "month": ""
+   },
+   {
+    "id": "t002",
+    "n": 1,
+    "kind": "task",
+    "title": "Sample contract review",
+    "cat": "Contracts",
+    "team": [
+     "MISMO"
+    ],
+    "owners": [
+     "Pat Example"
+    ],
+    "due": "2026-11-20",
+    "done": "",
+    "status": "In Progress",
+    "notes": "",
+    "ticket": "",
+    "check": [],
+    "autos": [],
+    "last": {
+     "st": "Complete",
+     "due": "2025-11-20",
+     "done": "2025-11-20",
+     "notes": ""
+    },
+    "month": ""
+   },
+   {
+    "id": "t003",
+    "n": 2,
+    "kind": "task",
+    "title": "Sample notice to lenders",
+    "cat": "Communications",
+    "team": [
+     "MISMO"
+    ],
+    "owners": [
+     "Sam Sample"
+    ],
+    "due": "2026-12-05",
+    "done": "",
+    "status": "Not Started",
+    "notes": "",
+    "ticket": "",
+    "check": [],
+    "autos": [],
+    "last": {
+     "st": "Complete",
+     "due": "2025-12-05",
+     "done": "2025-12-05",
+     "notes": ""
+    },
+    "month": ""
+   },
+   {
+    "id": "t004",
+    "n": 3,
+    "kind": "task",
+    "title": "Sample final file",
+    "cat": "Data",
+    "team": [
+     "MISMO"
+    ],
+    "owners": [
+     "Pat Example"
+    ],
+    "due": "2027-01-16",
+    "done": "",
+    "status": "Not Started",
+    "notes": "",
+    "ticket": "",
+    "check": [],
+    "autos": [],
+    "last": {
+     "st": "Complete",
+     "due": "2025-01-16",
+     "done": "2025-01-16",
+     "notes": ""
+    },
+    "month": "",
+    "key": "Final File"
+   },
+   {
+    "id": "t005",
+    "n": 4,
+    "kind": "task",
+    "title": "Sample invoices go out",
+    "cat": "Invoicing",
+    "team": [
+     "MISMO"
+    ],
+    "owners": [
+     "Sam Sample"
+    ],
+    "due": "2027-02-10",
+    "done": "",
+    "status": "Not Started",
+    "notes": "",
+    "ticket": "",
+    "check": [],
+    "autos": [],
+    "last": {
+     "st": "Complete",
+     "due": "2025-02-10",
+     "done": "2025-02-10",
+     "notes": ""
+    },
+    "month": "",
+    "key": "Invoices Sent"
+   },
+   {
+    "id": "t006",
+    "n": 5,
+    "kind": "task",
+    "title": "Sample collections follow-up",
+    "cat": "Collections",
+    "team": [
+     "MISMO"
+    ],
+    "owners": [
+     "Pat Example"
+    ],
+    "due": "2027-03-15",
+    "done": "",
+    "status": "Not Started",
+    "notes": "",
+    "ticket": "",
+    "check": [],
+    "autos": [],
+    "last": {
+     "st": "Complete",
+     "due": "2025-03-15",
+     "done": "2025-03-15",
+     "notes": ""
+    },
+    "month": ""
+   }
+  ],
+  "raid": [
+   {
+    "id": "r01",
+    "ref": 1,
+    "type": "Decision",
+    "status": "Reconfirm",
+    "desc": "Sample decision to reconfirm",
+    "who": "MISMO",
+    "notes": "",
+    "flag": "",
+    "created": "2025-10-03",
+    "fy27": ""
+   },
+   {
+    "id": "r02",
+    "ref": 2,
+    "type": "Risk",
+    "status": "Open",
+    "desc": "Sample risk to watch",
+    "who": "MISMO",
+    "notes": "",
+    "flag": "",
+    "created": "2025-10-10",
+    "fy27": ""
+   }
+  ],
+  "autos": [
+   {
+    "id": "A01",
+    "n": 0,
+    "grp": "now",
+    "title": "Sample automation one",
+    "today": "Done by hand today.",
+    "how": "A sample way to automate it.",
+    "who": "Claude",
+    "needs": "Sample inputs",
+    "saves": "Big",
+    "needBy": "2026-12-04",
+    "status": "Proposed",
+    "owner": "",
+    "notes": "",
+    "tasks": [
+     "t003"
+    ]
+   },
+   {
+    "id": "A02",
+    "n": 1,
+    "grp": "now",
+    "title": "Sample automation two",
+    "today": "Done by hand today.",
+    "how": "A sample way to automate it.",
+    "who": "Claude",
+    "needs": "Sample inputs",
+    "saves": "Big",
+    "needBy": "2026-12-04",
+    "status": "Proposed",
+    "owner": "",
+    "notes": "",
+    "tasks": [
+     "t003"
+    ]
+   }
+  ]
+ }
+}

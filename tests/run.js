@@ -101,6 +101,38 @@ const noErrors = (errs, where) => expect(!errs.length, 'Page errors' + (where ? 
     noErrors(s.errs); await s.close();
   });
 
+  /* 5. The masthead is Certification Management's, to the pixel (CN-053, Nov 26, 2026) */
+  const mastAt = async (w, h, want) => {
+    const s = await open(opts({ w, h }));
+    const m = await s.page.evaluate(() => {
+      const r = el => { const b = document.querySelector(el).getBoundingClientRect(); return { x: b.left, y: b.top, w: b.width, h: b.height, b: b.bottom }; };
+      const cs = el => getComputedStyle(document.querySelector(el));
+      const rail = document.querySelector('.hq.rail').getBoundingClientRect();
+      const pane = document.querySelector('.hqpane').getBoundingClientRect();
+      return { bar: r('.hqtop'), plate: r('.logoplate'), logo: r('.logoplate .wordmark'), rule: r('.hqtop .mastrule'), name: r('.hqtop .hqname'),
+        radius: cs('.logoplate').borderTopLeftRadius, plateShadow: cs('.logoplate').boxShadow, barShadow: cs('.hqtop').boxShadow,
+        ruleBg: cs('.hqtop .mastrule').backgroundColor, nameSize: cs('.hqtop .hqname').fontSize, nameWeight: cs('.hqtop .hqname').fontWeight,
+        nameColor: cs('.hqtop .hqname').color, barBg: cs('.hqtop').backgroundColor, railTop: rail.top, paneTop: pane.top,
+        oldHat: !!document.querySelector('.santa, #mismo-hat') || document.documentElement.hasAttribute('data-season'),
+        oneRow: document.querySelector('.hqtop').scrollHeight <= document.querySelector('.hqtop').clientHeight };
+    });
+    const near = (a, b) => Math.abs(a - b) < 0.6;
+    const bad = [];
+    for (const [k, v] of Object.entries(want)) { const got = k.split('.').reduce((o, p) => o[p], m); if (typeof v === 'number' ? !near(got, v) : got !== v) bad.push(k + ' is ' + got + ', should be ' + v); }
+    expect(near(m.railTop, m.bar.h) && near(m.paneTop, m.bar.h), 'the left menu (' + m.railTop + ') or panel (' + m.paneTop + ') does not start where the ' + m.bar.h + 'px bar ends');
+    expect(!m.oldHat, 'the retired December hat (.santa, #mismo-hat, data-season) is still on the page');
+    expect(m.oneRow, 'the masthead overflows its bar');
+    expect(!bad.length, bad.join('\n'));
+    noErrors(s.errs); await s.close();
+  };
+  await check('Masthead matches Certification Management on a wide screen', () => mastAt(1440, 900, {
+    'bar.y': 0, 'bar.h': 68, 'plate.x': 22, 'plate.y': 13, 'plate.h': 42, 'logo.h': 24, 'logo.w': 157.3, 'rule.w': 1, 'rule.h': 42,
+    radius: '5px', nameSize: '16px', nameWeight: '500', nameColor: 'rgb(148, 200, 233)', barBg: 'rgb(13, 49, 76)', ruleBg: 'rgba(80, 164, 219, 0.4)',
+    plateShadow: 'rgba(80, 164, 219, 0.35) 0px 1px 0px 0px', barShadow: 'rgba(80, 164, 219, 0.28) 0px 1px 0px 0px' }));
+  await check('Masthead matches Certification Management on a phone', () => mastAt(390, 844, {
+    'bar.h': 62, 'plate.x': 16, 'plate.y': 14.5, 'plate.h': 33, 'plate.w': 144.5, 'logo.h': 19, 'rule.h': 40, 'rule.x': 171.5 }));
+  await check('Masthead on a tablet keeps the 68px bar', () => mastAt(768, 1024, { 'bar.h': 68, 'plate.x': 22, 'plate.y': 13 }));
+
   await browser.close();
   const failed = results.filter(r => !r.ok);
   console.log('\n' + (results.length - failed.length) + ' of ' + results.length + ' checks passed.');

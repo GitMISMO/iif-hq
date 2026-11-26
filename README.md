@@ -19,6 +19,11 @@ shared `/assets/back.js` (owned by Forms and shared pages), loaded right after `
 never copy it here or add `history.pushState` for this (CN-033). A new panel or drawer is registered
 with `MismoBack.layer({isOpen, close})`, bottom layer first.
 
+Masthead: Certification Management's, to the pixel (CN-053; `hub/standards/mismo-brand.md`). `--hq-h` is
+68px (62px at 560px and under) and the left menu and side panel are placed from it, never from a fixed
+number. The December hat comes from the shared `/assets/holiday.js` (loaded by session.js); never add
+the old `.santa` / `#mismo-hat` / `data-season` hat back.
+
 ## Checks
 `npm install`, `npx playwright install chromium`, then `npm test` opens the page in a headless
 browser against a pretend sign-in and a pretend save relay (`tests/harness.js`) with made-up sample
